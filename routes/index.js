@@ -20,12 +20,12 @@ function testCmd() {
 		.output('../public/output/quote.mp4');
 		*/
 	ffmpeg()
-		.input(path.resolve(__dirname, '../woodsmall.jpg'))
+		.input(path.resolve(__dirname, '../public/images/woodsmall.jpg'))
 		.loop('1:00')
 		.videoFilters({
   			filter: 'drawtext',
   			options: {
-  				fontfile:'./feltthat.ttf',
+  				fontfile: path.resolve(__dirname, '../public/fonts/feltthat.ttf'),
   				text: 'Hey what is GOOD!?',
   				fontsize: 30,
   				fontcolor: 'red',
@@ -38,7 +38,7 @@ function testCmd() {
   		})
   		.videoCodec('libx264')
   		.addOption('-pix_fmt', 'yuv420p')
-		.save(__dirname + '/../output/output.mp4')
+		.save(__dirname + '/../public/output/output.mp4')
 		.on('end', function() {
     		console.log('file has been converted succesfully');
   		})

@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+var path = require('path');
 
 var ffmpeg = require('fluent-ffmpeg');
 var command = ffmpeg();
@@ -19,7 +20,8 @@ function testCmd() {
 		.output('../public/output/quote.mp4');
 		*/
 	ffmpeg()
-		.input('/tmp/woodsmall.jpg').loop('1:00')
+		.input(path.resolve(__dirname, '../woodsmall.jpg'))
+		.loop('1:00')
 		.videoFilters({
   			filter: 'drawtext',
   			options: {
@@ -36,13 +38,7 @@ function testCmd() {
   		})
   		.videoCodec('libx264')
   		.addOption('-pix_fmt', 'yuv420p')
-
-  		/*.input({
-
-  		})*/
-
-		//.(-vf "drawtext=fontfile=./feltthat.ttf:fontsize=30:fontcolor=white:x=(w-text_w)/2:y=(h-text_h-line_h)/2:text=\'Hey, what\'s good?\'")
-		.save('/tmp/output.mp4')
+		.save(__dirname + '/../output/output.mp4')
 		.on('end', function() {
     		console.log('file has been converted succesfully');
   		})

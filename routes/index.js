@@ -8,7 +8,12 @@ var ffmpeg = require('fluent-ffmpeg');
 var command = ffmpeg();
 
 var segmentFiles = [];
-var fontFilePath = path.resolve(__dirname, '../public/fonts/FiraMono-Regular.otf');
+//var fontFilePath = path.resolve(__dirname, '../public/fonts/FiraMono-Regular.otf');
+var fontFilePath = path.resolve(__dirname, '../public/fonts/Palatino.ttc');
+var audioSource = path.resolve(__dirname, '../public/audio/559.mp3');
+var width = 1012;
+var height = 506;
+
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
@@ -21,13 +26,13 @@ router.get('/', function(req, res, next) {
 	}
 
 	var returnChar = String.fromCharCode(13);
-	var audioStart = 9.5;
-	var audioEnd = 13;
-	var testString = String("she was reporting on" + returnChar + "the schools in durham" + returnChar + "north carolina").toLowerCase();
-	var re = new RegExp(returnChar, 'g');
-	var safeString = testString.replace(re, ' ');
-	var durations = [.5, .3, .1, .1, .3, .3, .3, .3, .3, .6];
-	var words = safeString.split(' ');
+	var audioStart = 574.5;
+	var audioEnd = 610;
+	//var testString = String("she was reporting on" + returnChar + "the schools in durham" + returnChar + "north carolina").toLowerCase();
+	var quote = String("I said, \"What\'s the" + returnChar + "status on the cookies?" + returnChar + "Yarr. Me so hungry,\"");
+	var words = String("I said What\'s the status on the cookies? Yarr. Me so hungry").split(' ');
+	var durations = 		[.4, .5, .2, .2, .2, .2, .2, .7, 1.2, .3, .3, .9];
+	// captain's log #559
 	var moments = [];
 	var i = 0; 
 	for (var w in words) {
@@ -39,23 +44,18 @@ router.get('/', function(req, res, next) {
 
 	var textFilePath = outputFilePath("text", "txt");
 	makeIntro(textFilePath, 2, function() {
-		//segmentFiles.push(outputFilePath("intro"));
-
 		async.eachSeries(moments, function iterator(moment, callback) {
 			var re = new RegExp(moment.word, 'g');
-			var withHighlight = testString.toLowerCase().replace(re, moment.word.toUpperCase());
 			segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
-
 			
-			fs.writeFile(outputFilePath("text", "txt"), withHighlight, function(err) {
+			fs.writeFile(outputFilePath("text", "txt"), quote, function(err) {
 				if(err) {
 					return console.log(err);
 				}
-				makeVideoSegment(moment.word, withHighlight, moment.duration, callback);
+				makeVideoSegment(moment.word, moment.duration, callback);
 
 			}); 
 		}, function done() {
-			var audioSource = path.resolve(__dirname, '../public/audio/562.mp3');
 	  		mergeItAll(segmentFiles, audioSource, audioStart, audioEnd, function(result) {
 	  			res.render('index', { title: 'Finished doing stuff! ' + result  });
 	  		});
@@ -68,20 +68,17 @@ router.get('/', function(req, res, next) {
 
 function makeIntro(textFilePath, duration, callback) {
 	ffmpeg()
-		.input(path.resolve(__dirname, '../public/images/woodsmall.jpg'))
+		.input(path.resolve(__dirname, '../public/images/bg.png'))
 		.loop(duration)
 		.videoFilters({
   			filter: 'drawtext',
   			options: {
   				fontfile: fontFilePath,
   				textfile: textFilePath,
-  				fontsize: 32,
+  				fontsize: 80,
   				fontcolor: 'white',
   				x: '(w-text_w)/2',
-  				y: '(h-text_h-line_h)/2',
-  				shadowcolor: 'black',
-  				shadowx: 2,
-  				shadowy: 2
+  				y: '(h-text_h-line_h)/2'
   			}
   		})
   		.videoCodec('libx264')
@@ -102,31 +99,28 @@ function makeIntro(textFilePath, duration, callback) {
   		});
 }
 
-function makeVideoSegment(segmentName, text, duration, callback) {
+function makeVideoSegment(word, duration, callback) {
 	console.log("Running ffmpeg");
 	ffmpeg()
-		.input(path.resolve(__dirname, '../public/images/woodsmall.jpg'))
+		.input(path.resolve(__dirname, '../public/images/bg.png'))
 		.loop(duration)
 		.videoFilters({
   			filter: 'drawtext',
   			options: {
   				fontfile: fontFilePath,
-  				text: segmentName,
+  				text: word,
   				//textfile: outputFilePath("text", "txt"),
-  				fontsize: 32,
+  				fontsize: 120,
   				fontcolor: 'white',
   				x: '(w-text_w)/2',
-  				y: '(h-text_h-line_h)/2',
-  				shadowcolor: 'black',
-  				shadowx: 2,
-  				shadowy: 2
+  				y: '(h-text_h-line_h)/2+40'
   			}
   		})
   		.videoCodec('libx264')
   		.addOption('-pix_fmt', 'yuv420p')
-		.save(outputFilePath(segmentName))
+		.save(outputFilePath(word))
 		.on('end', function() {
-    		console.log('Done producing segment:' + segmentName);
+    		console.log('Done producing segment:' + word);
     		callback();
   		})
   		.on('error', function(err) {
@@ -152,16 +146,6 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 		console.log("adding input", videoName)
 		mergedVideo = mergedVideo.addInput(videoName);
 	});
-
-/*
-	mergedVideo.mergeToFile('./mergedVideo.mp4', './tmp/')
-	.on('error', function(err) {
-		console.log('Error ' + err.message);
-	})
-	.on('end', function() {
-		console.log('Finished!');
-	});
-*/
 
 	mergedVideo.mergeToFile(outputFilePath('merged'))  		
 		.on('end', function() {
@@ -197,27 +181,9 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 		  						console.log('Done merging WITH audio');
 		  						var introPath = outputFilePath('intro');
 		  						var mergedPath = outputFilePath('mergedFinal');
-		  						/*
-		  						ffmpeg('"concat:' + introPath + '|' + mergedPath + '"')
-		  								.audioCodec('aac')
-		  								.videoCodec('libx264')
-		  								.save(outputFilePath('mergedWithIntro'))
-		  								.on('start', function(commandLine) {
-		  									console.log('Spawned Ffmpeg with command: ' + commandLine);
-		  								})
-		  								.on('error', function(err) {
-		  									console.log('Something went wrong adding intro: ' + err.message);
-		  									callback(err.message);
-		  								})
-		  								.on('end', function() {
-		  									console.log("Done prepending intro");
-		  									callback("success");
-		  								});
-		  					*/		
+
 		  						ffmpeg().input(outputFilePath('intro'))
-		  								.input(outputFilePath('mergedfinal'))
-		  								/*.audioCodec("copy")
-		  								.videoCodec("copy")*/
+		  								.input(outputFilePath('mergedFinal'))
 		  								.mergeToFile(outputFilePath('mergedWithIntro'))
 		  								.on('start', function(commandLine) {
 		  									console.log('Spawned Ffmpeg with command: ' + commandLine);

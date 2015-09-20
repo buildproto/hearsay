@@ -2,6 +2,7 @@ var express = require('express');
 var router = express.Router();
 var path = require('path');
 var async = require('async');
+var fs = require('fs');
 
 var ffmpeg = require('fluent-ffmpeg');
 var command = ffmpeg();
@@ -11,25 +12,40 @@ var segmentFiles = [];
 /* GET home page. */
 router.get('/', function(req, res, next) {
 
-	var testString = String("Hey what is GOOD").toLowerCase();
-	var durations = [1, 1, 1, 1];
+	fs.unlinkSync(outputFilePath('merged'));
+	fs.unlinkSync(outputFilePath('mergedFinal'));
+
+
+	var returnChar = String.fromCharCode(13);
+	var audioStart = 9.5;
+	var audioEnd = 13;
+	var testString = String("she was reporting on the schools " + returnChar + "in durham north carolina").toLowerCase();
+	var durations = [.5, .3, .1, .1, .3, .3, .3, .3, .3, .6];
 	var words = testString.split(' ');
 	var moments = [];
 	var i = 0; 
 	for (var w in words) {
-		moments.push({word: words[w], duration: durations[i]})
+		var safeWord = words[w].replace(returnChar, '');
+		moments.push({word: safeWord, duration: durations[i]})
 		i++;
 	}
 	console.log(moments);
 
 	async.eachSeries(moments, function iterator(moment, callback) {
-		var withHighlight = testString.toLowerCase().replace(moment.word, moment.word.toUpperCase());
+		var re = new RegExp(moment.word, 'g');
+		var withHighlight = testString.toLowerCase().replace(re, moment.word.toUpperCase());
 		segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
-		makeVideoSegment(moment.word, withHighlight, moment.duration, callback);
+
+		var fs = require('fs');
+		fs.writeFile(outputFilePath("text", "txt"), withHighlight, function(err) {
+			if(err) {
+				return console.log(err);
+			}
+			makeVideoSegment(moment.word, withHighlight, moment.duration, callback);
+
+		}); 
 	}, function done() {
 		var audioSource = path.resolve(__dirname, '../public/audio/562.mp3');
-		var audioStart = 10;
-		var audioEnd = 16;
   		mergeItAll(segmentFiles, audioSource, audioStart, audioEnd, function(result) {
   			res.render('index', { title: 'Finished doing stuff! ' + result  });
   		});
@@ -45,9 +61,10 @@ function makeVideoSegment(segmentName, text, duration, callback) {
   			filter: 'drawtext',
   			options: {
   				fontfile: path.resolve(__dirname, '../public/fonts/feltthat.ttf'),
-  				text: text,
-  				fontsize: 30,
-  				fontcolor: 'red',
+  				//text: text,
+  				textfile: outputFilePath("text", "txt"),
+  				fontsize: 42,
+  				fontcolor: 'white',
   				x: '(w-text_w)/2',
   				y: '(h-text_h-line_h)/2',
   				shadowcolor: 'black',
@@ -68,7 +85,10 @@ function makeVideoSegment(segmentName, text, duration, callback) {
   		});
 }
 
-function outputFilePath(name) {
+function outputFilePath(name, extension) {
+	if (extension) {
+		return __dirname + '/../public/output/' + name + '.' + extension;
+	}
 	return __dirname + '/../public/output/' + name + '.mp4';
 }
 
@@ -113,6 +133,7 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 							.input(outputFilePath('merged'))
 							.audioCodec('copy')
 							.videoCodec('copy')
+							.addOption('-shortest')
 							.save(outputFilePath('mergedFinal'))
 
 		  					.on('error', function(err) {

@@ -37,26 +37,88 @@ router.get('/', function(req, res, next) {
 	}
 	console.log(moments);
 
-	async.eachSeries(moments, function iterator(moment, callback) {
-		var re = new RegExp(moment.word, 'g');
-		var withHighlight = testString.toLowerCase().replace(re, moment.word.toUpperCase());
-		segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
+	var textFilePath = outputFilePath("text", "txt");
+	makeIntro(textFilePath, 2, function() {
+		//segmentFiles.push(outputFilePath("intro"));
 
-		var fs = require('fs');
-		fs.writeFile(outputFilePath("text", "txt"), withHighlight, function(err) {
-			if(err) {
-				return console.log(err);
-			}
-			makeVideoSegment(moment.word, withHighlight, moment.duration, callback);
+		async.eachSeries(moments, function iterator(moment, callback) {
+			var re = new RegExp(moment.word, 'g');
+			var withHighlight = testString.toLowerCase().replace(re, moment.word.toUpperCase());
+			segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
 
-		}); 
-	}, function done() {
-		var audioSource = path.resolve(__dirname, '../public/audio/562.mp3');
-  		mergeItAll(segmentFiles, audioSource, audioStart, audioEnd, function(result) {
-  			res.render('index', { title: 'Finished doing stuff! ' + result  });
-  		});
+			var fs = require('fs');
+			fs.writeFile(outputFilePath("text", "txt"), withHighlight, function(err) {
+				if(err) {
+					return console.log(err);
+				}
+				makeVideoSegment(moment.word, withHighlight, moment.duration, callback);
+
+			}); 
+		}, function done() {
+			var audioSource = path.resolve(__dirname, '../public/audio/562.mp3');
+	  		mergeItAll(segmentFiles, audioSource, audioStart, audioEnd, function(result) {
+	  			res.render('index', { title: 'Finished doing stuff! ' + result  });
+	  		});
+		});
+
 	});
+
+
 });
+
+function makeIntro(textFilePath, duration, callback) {
+	ffmpeg()
+		.input(path.resolve(__dirname, '../public/images/woodsmall.jpg'))
+		.loop(duration)
+		.videoFilters({
+  			filter: 'drawtext',
+  			options: {
+  				fontfile: fontFilePath,
+  				textfile: textFilePath,
+  				fontsize: 32,
+  				fontcolor: 'white',
+  				x: '(w-text_w)/2',
+  				y: '(h-text_h-line_h)/2',
+  				shadowcolor: 'black',
+  				shadowx: 2,
+  				shadowy: 2
+  			}
+  		})
+  		.videoCodec('libx264')  		
+  		.addOption('-pix_fmt', 'yuv420p')
+		.save(outputFilePath("intro"))
+		.on('start', function() {
+			console.log("started making intro");
+		})
+		.on('end', function() {
+    		console.log('Done producing segment: intro');
+    		console.log("audio path", path.resolve(__dirname, '../public/audio/silence.mp3'));
+    		var mergedAudioAndVideo = ffmpeg()
+				.input(path.resolve(__dirname, '../public/audio/silence.aac'))
+				.input(outputFilePath('intro'))
+				
+							.audioCodec('copy')
+							.videoCodec('copy')
+							//.addOption('-shortest')
+							.save(outputFilePath('introWithAudio'))
+
+		  					.on('error', function(err) {
+		  						console.log('Something went wrong adding audio to intro: ' + err.message);
+		  						callback(err.message);
+		  					})
+		  					.on('end', function() {
+		  						console.log("done adding audio silence to intro");
+		  						callback("success");
+		  					});
+
+
+    		
+  		})
+  		.on('error', function(err) {
+    		console.log('an error happened: ' + err.message);
+    		callback();
+  		});
+}
 
 function makeVideoSegment(segmentName, text, duration, callback) {
 	console.log("Running ffmpeg");
@@ -67,8 +129,8 @@ function makeVideoSegment(segmentName, text, duration, callback) {
   			filter: 'drawtext',
   			options: {
   				fontfile: fontFilePath,
-  				//text: text,
-  				textfile: outputFilePath("text", "txt"),
+  				text: segmentName,
+  				//textfile: outputFilePath("text", "txt"),
   				fontsize: 32,
   				fontcolor: 'white',
   				x: '(w-text_w)/2',
@@ -87,6 +149,7 @@ function makeVideoSegment(segmentName, text, duration, callback) {
   		})
   		.on('error', function(err) {
     		console.log('an error happened: ' + err.message);
+    		throw(err);
     		callback();
   		});
 }
@@ -121,7 +184,8 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 		.on('end', function() {
     		console.log('Done merging before audio');
 
-			ffmpeg().input(audioSource)
+			ffmpeg()
+					.input(audioSource)
   					//.addOption('-codec', 'copy')
   					//.addOption('-shortest')
 			  		.addOption('-ss', audioStart)
@@ -148,7 +212,18 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 		  					})
 		  					.on('end', function() {
 		  						console.log('Done merging WITH audio');
-		  						callback('success');
+		  						ffmpeg({source: outputFilePath('introWithAudio')})
+		  								.mergeAdd(outputFilePath('mergedFinal'))
+		  								.mergeToFile(outputFilePath('mergedWithIntro'))
+		  								.on('error', function(err) {
+		  									console.log('Something went wrong adding intro: ' + err.message);
+		  									callback(err.message);
+		  								})
+		  								.on('end', function() {
+		  									console.log("Done prepending intro");
+		  									callback("success");
+		  								});
+
 		  					});
 
 		  				});

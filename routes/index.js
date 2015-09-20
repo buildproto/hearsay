@@ -8,20 +8,26 @@ var ffmpeg = require('fluent-ffmpeg');
 var command = ffmpeg();
 
 var segmentFiles = [];
+var fontFilePath = path.resolve(__dirname, '../public/fonts/FiraMono-Regular.otf');
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
 
-	fs.unlinkSync(outputFilePath('merged'));
-	fs.unlinkSync(outputFilePath('mergedFinal'));
-
+	if (fs.existsSync(outputFilePath('merged'))) {
+		fs.unlinkSync(outputFilePath('merged'));
+	}
+	if (fs.existsSync(outputFilePath('mergedFinal'))) {
+		fs.unlinkSync(outputFilePath('mergedFinal'), function(err) {});
+	}
 
 	var returnChar = String.fromCharCode(13);
 	var audioStart = 9.5;
 	var audioEnd = 13;
-	var testString = String("she was reporting on the schools " + returnChar + "in durham north carolina").toLowerCase();
+	var testString = String("she was reporting on" + returnChar + "the schools in durham" + returnChar + "north carolina").toLowerCase();
+	var re = new RegExp(returnChar, 'g');
+	var safeString = testString.replace(re, ' ');
 	var durations = [.5, .3, .1, .1, .3, .3, .3, .3, .3, .6];
-	var words = testString.split(' ');
+	var words = safeString.split(' ');
 	var moments = [];
 	var i = 0; 
 	for (var w in words) {
@@ -60,10 +66,10 @@ function makeVideoSegment(segmentName, text, duration, callback) {
 		.videoFilters({
   			filter: 'drawtext',
   			options: {
-  				fontfile: path.resolve(__dirname, '../public/fonts/feltthat.ttf'),
+  				fontfile: fontFilePath,
   				//text: text,
   				textfile: outputFilePath("text", "txt"),
-  				fontsize: 42,
+  				fontsize: 32,
   				fontcolor: 'white',
   				x: '(w-text_w)/2',
   				y: '(h-text_h-line_h)/2',

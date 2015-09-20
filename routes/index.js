@@ -46,7 +46,7 @@ router.get('/', function(req, res, next) {
 			var withHighlight = testString.toLowerCase().replace(re, moment.word.toUpperCase());
 			segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
 
-			var fs = require('fs');
+			
 			fs.writeFile(outputFilePath("text", "txt"), withHighlight, function(err) {
 				if(err) {
 					return console.log(err);
@@ -84,7 +84,9 @@ function makeIntro(textFilePath, duration, callback) {
   				shadowy: 2
   			}
   		})
-  		.videoCodec('libx264')  		
+  		.videoCodec('libx264')
+  		.input(path.resolve(__dirname, '../public/audio/silence.aac'))
+  		.audioCodec('aac')		
   		.addOption('-pix_fmt', 'yuv420p')
 		.save(outputFilePath("intro"))
 		.on('start', function() {
@@ -92,27 +94,7 @@ function makeIntro(textFilePath, duration, callback) {
 		})
 		.on('end', function() {
     		console.log('Done producing segment: intro');
-    		console.log("audio path", path.resolve(__dirname, '../public/audio/silence.mp3'));
-    		var mergedAudioAndVideo = ffmpeg()
-				.input(path.resolve(__dirname, '../public/audio/silence.aac'))
-				.input(outputFilePath('intro'))
-				
-							.audioCodec('copy')
-							.videoCodec('copy')
-							//.addOption('-shortest')
-							.save(outputFilePath('introWithAudio'))
-
-		  					.on('error', function(err) {
-		  						console.log('Something went wrong adding audio to intro: ' + err.message);
-		  						callback(err.message);
-		  					})
-		  					.on('end', function() {
-		  						console.log("done adding audio silence to intro");
-		  						callback("success");
-		  					});
-
-
-    		
+    		callback("success");
   		})
   		.on('error', function(err) {
     		console.log('an error happened: ' + err.message);
@@ -156,9 +138,10 @@ function makeVideoSegment(segmentName, text, duration, callback) {
 
 function outputFilePath(name, extension) {
 	if (extension) {
-		return __dirname + '/../public/output/' + name + '.' + extension;
+		return path.resolve(__dirname, '../public/output/' + name + '.' + extension);
+		//return __dirname + '/../public/output/' + name + '.' + extension;
 	}
-	return __dirname + '/../public/output/' + name + '.mp4';
+	return path.resolve(__dirname, '../public/output/' + name + '.mp4');
 }
 
 function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
@@ -212,9 +195,16 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 		  					})
 		  					.on('end', function() {
 		  						console.log('Done merging WITH audio');
-		  						ffmpeg({source: outputFilePath('introWithAudio')})
-		  								.mergeAdd(outputFilePath('mergedFinal'))
-		  								.mergeToFile(outputFilePath('mergedWithIntro'))
+		  						var introPath = outputFilePath('intro');
+		  						var mergedPath = outputFilePath('mergedFinal');
+		  						/*
+		  						ffmpeg('"concat:' + introPath + '|' + mergedPath + '"')
+		  								.audioCodec('aac')
+		  								.videoCodec('libx264')
+		  								.save(outputFilePath('mergedWithIntro'))
+		  								.on('start', function(commandLine) {
+		  									console.log('Spawned Ffmpeg with command: ' + commandLine);
+		  								})
 		  								.on('error', function(err) {
 		  									console.log('Something went wrong adding intro: ' + err.message);
 		  									callback(err.message);
@@ -223,7 +213,23 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 		  									console.log("Done prepending intro");
 		  									callback("success");
 		  								});
-
+		  					*/		
+		  						ffmpeg().input(outputFilePath('intro'))
+		  								.input(outputFilePath('mergedfinal'))
+		  								/*.audioCodec("copy")
+		  								.videoCodec("copy")*/
+		  								.mergeToFile(outputFilePath('mergedWithIntro'))
+		  								.on('start', function(commandLine) {
+		  									console.log('Spawned Ffmpeg with command: ' + commandLine);
+		  								})
+		  								.on('error', function(err) {
+		  									console.log('Something went wrong adding intro: ' + err.message);
+		  									callback(err.message);
+		  								})
+		  								.on('end', function() {
+		  									console.log("Done prepending intro");
+		  									callback("success");
+		  								});
 		  					});
 
 		  				});
@@ -237,6 +243,15 @@ function mergeItAll(videoSources, audioSource, audioStart, audioEnd, callback) {
 
 }
 
+
+function writeConcatFile(callback) {
+	fs.writeFile(outputFilePath("concatFiles", "txt"), withHighlight, function(err) {
+		if(err) {
+			return console.log(err);
+		}
+		callback();
+	}); 
+}
 
 
 module.exports = router;

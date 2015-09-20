@@ -10,6 +10,9 @@ var command = ffmpeg();
 var segmentFiles = [];
 //var fontFilePath = path.resolve(__dirname, '../public/fonts/FiraMono-Regular.otf');
 var fontFilePath = path.resolve(__dirname, '../public/fonts/Palatino.ttc');
+//var boldFontFilePath = path.resolve(__dirname, '../public/fonts/HelveticaNeueDeskInterface.ttc');
+var boldFontFilePath = path.resolve(__dirname, '../public/fonts/ag-helvetica-bold-35361.ttf');
+
 var audioSource = path.resolve(__dirname, '../public/audio/559.mp3');
 var width = 1012;
 var height = 506;
@@ -31,6 +34,7 @@ router.get('/', function(req, res, next) {
 	//var testString = String("she was reporting on" + returnChar + "the schools in durham" + returnChar + "north carolina").toLowerCase();
 	var quote = String("I said, \"What\'s the" + returnChar + "status on the cookies?" + returnChar + "Yarr. Me so hungry,\"");
 	var words = String("I said What\'s the status on the cookies? Yarr. Me so hungry").split(' ');
+	var author = "TOREY MALATIA - TAL #559";
 	var durations = 		[.4, .5, .2, .2, .2, .2, .2, .7, 1.2, .3, .3, .9];
 	// captain's log #559
 	var moments = [];
@@ -43,7 +47,7 @@ router.get('/', function(req, res, next) {
 	console.log(moments);
 
 	var textFilePath = outputFilePath("text", "txt");
-	makeIntro(textFilePath, 2, function() {
+	makeIntro(textFilePath, author, 2, function() {
 		async.eachSeries(moments, function iterator(moment, callback) {
 			var re = new RegExp(moment.word, 'g');
 			segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
@@ -66,7 +70,7 @@ router.get('/', function(req, res, next) {
 
 });
 
-function makeIntro(textFilePath, duration, callback) {
+function makeIntro(textFilePath, author, duration, callback) {
 	ffmpeg()
 		.input(path.resolve(__dirname, '../public/images/bg.png'))
 		.loop(duration)
@@ -77,10 +81,22 @@ function makeIntro(textFilePath, duration, callback) {
   				textfile: textFilePath,
   				fontsize: 80,
   				fontcolor: 'white',
-  				x: '(w-text_w)/2',
-  				y: '(h-text_h-line_h)/2'
+  				//x: '(w-text_w)/2',
+  				x: 70,
+  				y: '(h-text_h-line_h)/2 - 30'
   			}
   		})
+		.videoFilters({
+			filter: 'drawtext',
+			options: {
+				fontfile: boldFontFilePath,
+				text: author,
+				fontsize: 40,
+				fontcolor: 'white',
+				x: 70,
+				y: height - 80
+			}
+		})
   		.videoCodec('libx264')
   		.input(path.resolve(__dirname, '../public/audio/silence.aac'))
   		.audioCodec('aac')		

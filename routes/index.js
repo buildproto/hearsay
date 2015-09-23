@@ -24,7 +24,7 @@ router.get('/', function(req, res, next) {
 			{word: "Yarr.", duration: 1.2},
 			{word: "Me", duration: .3},
 			{word: "so", duration: .3},
-			{word: "hungry", duration: .3}
+			{word: "hungry", duration: .8}
 		],
 		introDuration: 2,		
 		attribution: "TOREY MALATIA - TAL #559",

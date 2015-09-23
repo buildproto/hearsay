@@ -6,16 +6,27 @@ This is a library that, given a quote with word by word timestamps and a source 
 
 ## Code Example
 
-This is a node-wrapped series of ffmpeg operations. See hearsay.js for details.
+This is a node-wrapped series of ffmpeg operations. 
 
+See [hearsay.js](lib/hearsay.js) for details.
 
 ## Installation
 
 You need to make sure you have ffmpeg installed with libfreetype (drawtext) capability.
 
 see: https://trac.ffmpeg.org/wiki/CompilationGuide/MacOSX
+
 I think I used this incantation:
 `brew install ffmpeg --with-fdk-aac --with-ffplay --with-freetype --with-libass --with-libquvi --with-libvorbis --with-libvpx --with-opus --with-x265`
+
+To setup this project:
+`npm install`
+
+To start the server:
+`bin/www`
+
+To reproduce the demo video, go here:
+http://localhost:3000
 
 ## API Reference
 

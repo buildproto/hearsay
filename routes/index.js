@@ -1,72 +1,15 @@
 var express = require('express');
 var router = express.Router();
-var path = require('path');
-var async = require('async');
-var fs = require('fs');
-
-var ffmpeg = require('fluent-ffmpeg');
-var command = ffmpeg();
-
-var segmentFiles = [];
-//var fontFilePath = path.resolve(__dirname, '../public/fonts/FiraMono-Regular.otf');
-var fontFilePath = path.resolve(__dirname, '../public/fonts/Palatino.ttc');
-//var boldFontFilePath = path.resolve(__dirname, '../public/fonts/HelveticaNeueDeskInterface.ttc');
-var boldFontFilePath = path.resolve(__dirname, '../public/fonts/ag-helvetica-bold-35361.ttf');
-
-var audioSource = path.resolve(__dirname, '../public/audio/559.mp3');
-var width = 1012;
-var height = 506;
+var hearsay = require('../lib/hearsay')
 
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
 
-	if (fs.existsSync(outputFilePath('merged'))) {
-		fs.unlinkSync(outputFilePath('merged'));
-	}
-	if (fs.existsSync(outputFilePath('mergedFinal'))) {
-		fs.unlinkSync(outputFilePath('mergedFinal'), function(err) {});
-	}
-
-	var returnChar = String.fromCharCode(13);
-	var audioStart = 574.5;
-	var audioEnd = 610;
-	//var testString = String("she was reporting on" + returnChar + "the schools in durham" + returnChar + "north carolina").toLowerCase();
-	var quote = String("I said, \"What\'s the" + returnChar + "status on the cookies?" + returnChar + "Yarr. Me so hungry,\"");
-	var words = String("I said What\'s the status on the cookies? Yarr. Me so hungry").split(' ');
-	var author = "TOREY MALATIA - TAL #559";
-	var durations = 		[.4, .5, .2, .2, .2, .2, .2, .7, 1.2, .3, .3, .9];
-	// captain's log #559
-	var moments = [];
-	var i = 0; 
-	for (var w in words) {
-		var safeWord = words[w].replace(returnChar, '');
-		moments.push({word: safeWord, duration: durations[i]})
-		i++;
-	}
-	console.log(moments);
-
-	var textFilePath = outputFilePath("text", "txt");
-	makeIntro(textFilePath, author, 2, function() {
-		async.eachSeries(moments, function iterator(moment, callback) {
-			var re = new RegExp(moment.word, 'g');
-			segmentFiles.push(outputFilePath(moment.word)); //FIXME: uniquify
-			
-			fs.writeFile(outputFilePath("text", "txt"), quote, function(err) {
-				if(err) {
-					return console.log(err);
-				}
-				makeVideoSegment(moment.word, moment.duration, callback);
-
-			}); 
-		}, function done() {
-	  		mergeItAll(segmentFiles, audioSource, audioStart, audioEnd, function(result) {
-	  			res.render('index', { title: 'Finished doing stuff! ' + result  });
-	  		});
-		});
-
+	var options = {};
+	hearsay.renderQuoteVideo(options, function(result) {
+		res.render('index', { title: 'Finished doing stuff! ' + result  });
 	});
-
 
 });
 
